@@ -1,0 +1,20 @@
+[package]
+name = "hmacs-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Matching engine with order book for HMACS"
+
+[dependencies]
+hmacs-core = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+dashmap = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }

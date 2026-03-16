@@ -1,0 +1,19 @@
+[server]
+bind_addr = "0.0.0.0:8080"
+
+[database]
+# url = set via HMACS_DATABASE_URL environment variable
+max_connections = 50
+min_connections = 5
+connect_timeout_secs = 5
+idle_timeout_secs = 600
+
+[auth]
+# jwt_secret = set via HMACS_JWT_SECRET environment variable
+jwt_token_ttl_hours = 8
+
+[settlement.solana]
+rpc_url = "https://api.mainnet-beta.solana.com"
+
+[settlement.ethereum]
+rpc_url = "https://eth.llamarpc.com"
