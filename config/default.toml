@@ -2,7 +2,7 @@
 bind_addr = "0.0.0.0:8080"
 
 [database]
-url = "postgres://hmacs:hmacs@localhost:5432/hmacs"
+url = "postgres://carbide:carbide@localhost:5432/carbide"
 max_connections = 20
 min_connections = 2
 connect_timeout_secs = 10
@@ -12,7 +12,7 @@ idle_timeout_secs = 300
 url = "redis://localhost:6379"
 
 [auth]
-jwt_secret = "hmacs-dev-secret-change-in-production"
+jwt_secret = "carbide-dev-secret-change-in-production"
 jwt_token_ttl_hours = 24
 
 [settlement.solana]

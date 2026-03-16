@@ -1,6 +1,6 @@
-# HMACS 代码说明书
+# Carbide 代码说明书
 
-> **HMACS** — Human-Machine Anonymous Collaboration System
+> **Carbide** — Human-Machine Anonymous Collaboration System
 > 人机匿名协作系统：一个基于 Rust 的 Web 2.5 交易平台，支持人与智能体之间交换任务、算力与代币。
 
 ---
@@ -11,18 +11,18 @@
 2. [架构总览](#2-架构总览)
 3. [目录结构](#3-目录结构)
 4. [Crate 依赖关系](#4-crate-依赖关系)
-5. [核心类型层 — hmacs-core](#5-核心类型层--hmacs-core)
-6. [身份与认证 — hmacs-identity](#6-身份与认证--hmacs-identity)
-7. [撮合引擎 — hmacs-engine](#7-撮合引擎--hmacs-engine)
-8. [任务市场 — hmacs-task](#8-任务市场--hmacs-task)
-9. [算力市场 — hmacs-compute](#9-算力市场--hmacs-compute)
-10. [内部账本 — hmacs-wallet](#10-内部账本--hmacs-wallet)
-11. [链上结算 — hmacs-settlement](#11-链上结算--hmacs-settlement)
-12. [数据存储 — hmacs-storage](#12-数据存储--hmacs-storage)
-13. [API 网关 — hmacs-api](#13-api-网关--hmacs-api)
-14. [Agent SDK — hmacs-sdk](#14-agent-sdk--hmacs-sdk)
-15. [合规引擎 — hmacs-compliance](#15-合规引擎--hmacs-compliance)
-16. [MPC 子系统 — hmacs-mpc](#16-mpc-子系统--hmacs-mpc)
+5. [核心类型层 — carbide-core](#5-核心类型层--carbide-core)
+6. [身份与认证 — carbide-identity](#6-身份与认证--carbide-identity)
+7. [撮合引擎 — carbide-engine](#7-撮合引擎--carbide-engine)
+8. [任务市场 — carbide-task](#8-任务市场--carbide-task)
+9. [算力市场 — carbide-compute](#9-算力市场--carbide-compute)
+10. [内部账本 — carbide-wallet](#10-内部账本--carbide-wallet)
+11. [链上结算 — carbide-settlement](#11-链上结算--carbide-settlement)
+12. [数据存储 — carbide-storage](#12-数据存储--carbide-storage)
+13. [API 网关 — carbide-api](#13-api-网关--carbide-api)
+14. [Agent SDK — carbide-sdk](#14-agent-sdk--carbide-sdk)
+15. [合规引擎 — carbide-compliance](#15-合规引擎--carbide-compliance)
+16. [MPC 子系统 — carbide-mpc](#16-mpc-子系统--carbide-mpc)
 17. [gRPC 协议定义](#17-grpc-协议定义)
 18. [数据库 Schema](#18-数据库-schema)
 19. [配置系统](#19-配置系统)
@@ -33,7 +33,7 @@
 
 ## 1. 项目概览
 
-HMACS 是一个中心化撮合 + 多链结算的人机交易平台。核心能力：
+Carbide 是一个中心化撮合 + 多链结算的人机交易平台。核心能力：
 
 | 子系统 | 功能 |
 |--------|------|
@@ -56,7 +56,7 @@ HMACS 是一个中心化撮合 + 多链结算的人机交易平台。核心能�
 └───────┬────────┴─────────┬──────────┴─────────┬──────────┘
         │ REST (Axum)      │ gRPC (Tonic)       │ WebSocket
 ┌───────▼──────────────────▼────────────────────▼──────────┐
-│                    hmacs-api 网关                          │
+│                    carbide-api 网关                          │
 │  认证中间件 → 路由分发 → 错误处理 → JSON/Proto 序列化        │
 └───┬────┬────┬────┬────┬────┬────┬────────────────────────┘
     │    │    │    │    │    │    │
@@ -65,17 +65,17 @@ HMACS 是一个中心化撮合 + 多链结算的人机交易平台。核心能�
     │    │    │    │    │        │    │
     │    └────┴────┘    │        │    │
     │         │         │        │    │
-    │     hmacs-wallet ◄┘        │    │
+    │     carbide-wallet ◄┘        │    │
     │         │                  │    │
     │         ▼                  │    │
-    │    hmacs-settlement        │    │
+    │    carbide-settlement        │    │
     │    ┌────┴────┐             │    │
     │    ▼         ▼             │    │
     │  Solana    EVM chains      │    │
     │                            │    │
-    └──── hmacs-core (所有 crate 共享的基础类型) ◄────┘
+    └──── carbide-core (所有 crate 共享的基础类型) ◄────┘
                     │
-              hmacs-storage (PostgreSQL)
+              carbide-storage (PostgreSQL)
 ```
 
 **数据流**: 客户端请求 → API 网关认证 → 业务服务处理 → 内部账本记账 → 链上结算
@@ -85,7 +85,7 @@ HMACS 是一个中心化撮合 + 多链结算的人机交易平台。核心能�
 ## 3. 目录结构
 
 ```
-hmacs/
+carbide/
 ├── Cargo.toml                      # Workspace 根配置
 ├── Cargo.lock                      # 依赖锁文件
 ├── config/
@@ -95,22 +95,22 @@ hmacs/
 │   ├── 001_initial.sql             # 核心 Schema（15 张表）
 │   └── 002_compliance.sql          # 合规 Schema（9 张表）
 ├── proto/
-│   └── hmacs.proto                 # gRPC 服务定义（4 个 Service）
+│   └── carbide.proto                 # gRPC 服务定义（4 个 Service）
 ├── docs/
 │   └── CODEBASE.md                 # 本文档
 └── crates/
-    ├── hmacs-core/                 # 基础类型、ID、错误、Trait
-    ├── hmacs-identity/             # 钱包认证、API Key、JWT、委托密钥
-    ├── hmacs-engine/               # 撮合引擎（订单簿、匹配算法）
-    ├── hmacs-task/                 # 任务市场业务逻辑
-    ├── hmacs-compute/              # 算力市场业务逻辑
-    ├── hmacs-wallet/               # 内部账本（余额、冻结、隔离、惩罚）
-    ├── hmacs-settlement/           # 链抽象层 + 多链结算
-    ├── hmacs-storage/              # 数据库连接池与 Repository 抽象
-    ├── hmacs-api/                  # REST/gRPC/WebSocket 网关
-    ├── hmacs-sdk/                  # Agent 接入 SDK
-    ├── hmacs-compliance/           # 多司法管辖区合规引擎
-    └── hmacs-mpc/                  # MPC FROST 门限签名子系统
+    ├── carbide-core/                 # 基础类型、ID、错误、Trait
+    ├── carbide-identity/             # 钱包认证、API Key、JWT、委托密钥
+    ├── carbide-engine/               # 撮合引擎（订单簿、匹配算法）
+    ├── carbide-task/                 # 任务市场业务逻辑
+    ├── carbide-compute/              # 算力市场业务逻辑
+    ├── carbide-wallet/               # 内部账本（余额、冻结、隔离、惩罚）
+    ├── carbide-settlement/           # 链抽象层 + 多链结算
+    ├── carbide-storage/              # 数据库连接池与 Repository 抽象
+    ├── carbide-api/                  # REST/gRPC/WebSocket 网关
+    ├── carbide-sdk/                  # Agent 接入 SDK
+    ├── carbide-compliance/           # 多司法管辖区合规引擎
+    └── carbide-mpc/                  # MPC FROST 门限签名子系统
 ```
 
 ---
@@ -118,31 +118,31 @@ hmacs/
 ## 4. Crate 依赖关系
 
 ```
-                          hmacs-core
+                          carbide-core
                          ╱    │    ╲
                         ╱     │     ╲
-              hmacs-storage   │   hmacs-engine
+              carbide-storage   │   carbide-engine
                  ╱    ╲       │      │
                 ╱      ╲      │      │
-    hmacs-identity  hmacs-wallet     │
+    carbide-identity  carbide-wallet     │
          │              │  ╲         │
          │              │   ╲        │
-         │     hmacs-settlement      │
+         │     carbide-settlement      │
          │              │            │
-         │      hmacs-task ◄─────────┘
-         │      hmacs-compute ◄──────┘
+         │      carbide-task ◄─────────┘
+         │      carbide-compute ◄──────┘
          │              │
-    hmacs-compliance    │
-         │         hmacs-mpc (→ hmacs-wallet)
+    carbide-compliance    │
+         │         carbide-mpc (→ carbide-wallet)
          │              │
-         └──── hmacs-api (聚合所有服务) ────── hmacs-sdk
+         └──── carbide-api (聚合所有服务) ────── carbide-sdk
 ```
 
-**规则**: `hmacs-core` 是无依赖的叶子 crate，所有其他 crate 都依赖它。`hmacs-api` 是聚合层，依赖全部业务 crate。
+**规则**: `carbide-core` 是无依赖的叶子 crate，所有其他 crate 都依赖它。`carbide-api` 是聚合层，依赖全部业务 crate。
 
 ---
 
-## 5. 核心类型层 — hmacs-core
+## 5. 核心类型层 — carbide-core
 
 ### 5.1 ID 类型系统 (`types/ids.rs`)
 
@@ -217,7 +217,7 @@ struct DelegatedKey {
 struct Participant {
     id: ParticipantId,
     kind: ParticipantKind,
-    did: String,                  // 去中心化标识符 did:hmacs:<uuid>
+    did: String,                  // 去中心化标识符 did:carbide:<uuid>
     master_id: Option<ParticipantId>,  // Agent → 其 Human 主人
     sbt_verified: bool,           // 人类是否持有灵魂绑定代币 (KYC)
     blacklisted: bool,            // MPC 恶意行为黑名单
@@ -232,7 +232,7 @@ struct Participant {
 
 ### 5.4 错误体系 (`error.rs`)
 
-`HmacsError` 枚举包含 19 个变体，每个映射到 HTTP 状态码：
+`CarbideError` 枚举包含 19 个变体，每个映射到 HTTP 状态码：
 
 | 错误变体 | HTTP | 场景 |
 |---------|------|------|
@@ -265,7 +265,7 @@ struct PaginatedResponse<T> { items: Vec<T>, total: u64, page: u64, per_page: u6
 
 ---
 
-## 6. 身份与认证 — hmacs-identity
+## 6. 身份与认证 — carbide-identity
 
 ### 6.1 钱包签名认证 (`wallet_auth.rs`)
 
@@ -291,7 +291,7 @@ struct Claims {
 
 ### 6.3 API Key (`api_key.rs`)
 
-- 生成: `hmacs_` 前缀 + 32 字节随机数 hex 编码
+- 生成: `carbide_` 前缀 + 32 字节随机数 hex 编码
 - 存储: 仅存 SHA-256 哈希，原始密钥在创建时返回一次
 - 验证: 计算输入哈希与存储哈希比对
 
@@ -311,7 +311,7 @@ struct Claims {
 
 ---
 
-## 7. 撮合引擎 — hmacs-engine
+## 7. 撮合引擎 — carbide-engine
 
 ### 7.1 订单模型 (`order.rs`)
 
@@ -364,7 +364,7 @@ struct TradeExecution {
 
 ---
 
-## 8. 任务市场 — hmacs-task
+## 8. 任务市场 — carbide-task
 
 ### 8.1 任务状态机 (`state_machine.rs`)
 
@@ -439,7 +439,7 @@ struct Bid {
 
 ---
 
-## 9. 算力市场 — hmacs-compute
+## 9. 算力市场 — carbide-compute
 
 ### 9.1 资源模型 (`resource.rs`)
 
@@ -500,7 +500,7 @@ struct PriceGuidance {
 
 ---
 
-## 10. 内部账本 — hmacs-wallet
+## 10. 内部账本 — carbide-wallet
 
 ### 10.1 余额结构 (`balance.rs`)
 
@@ -559,7 +559,7 @@ enum LedgerEntryType {
 
 ---
 
-## 11. 链上结算 — hmacs-settlement
+## 11. 链上结算 — carbide-settlement
 
 ### 11.1 链抽象 Trait (`chain.rs`)
 
@@ -589,7 +589,7 @@ trait ChainAdapter: Send + Sync {
 
 ---
 
-## 12. 数据存储 — hmacs-storage
+## 12. 数据存储 — carbide-storage
 
 ### 12.1 连接池 (`pool.rs`)
 
@@ -611,16 +611,16 @@ async fn run_migrations(pool: &PgPool);
 ```rust
 #[async_trait]
 trait Repository<T, Id, Create>: Send + Sync {
-    async fn get_by_id(&self, id: Id) -> HmacsResult<T>;
-    async fn create(&self, input: Create) -> HmacsResult<T>;
-    async fn delete(&self, id: Id) -> HmacsResult<()>;
-    async fn list(&self, params: &PaginationParams) -> HmacsResult<(Vec<T>, u64)>;
+    async fn get_by_id(&self, id: Id) -> CarbideResult<T>;
+    async fn create(&self, input: Create) -> CarbideResult<T>;
+    async fn delete(&self, id: Id) -> CarbideResult<()>;
+    async fn list(&self, params: &PaginationParams) -> CarbideResult<(Vec<T>, u64)>;
 }
 ```
 
 ---
 
-## 13. API 网关 — hmacs-api
+## 13. API 网关 — carbide-api
 
 ### 13.1 应用状态 (`state.rs`)
 
@@ -694,7 +694,7 @@ WS   /ws                                  → WebSocket 实时推送
 
 ### 13.4 错误处理 (`error.rs`)
 
-`ApiError` 包装 `HmacsError`，实现 `IntoResponse`：
+`ApiError` 包装 `CarbideError`，实现 `IntoResponse`：
 
 ```json
 {
@@ -721,19 +721,19 @@ enum WsMessage {
 
 ---
 
-## 14. Agent SDK — hmacs-sdk
+## 14. Agent SDK — carbide-sdk
 
 ### 14.1 客户端 (`client.rs`)
 
 ```rust
-struct HmacsClient {
-    config: HmacsClientConfig,  // endpoint, api_key, jwt_token, retries, timeout
+struct CarbideClient {
+    config: CarbideClientConfig,  // endpoint, api_key, jwt_token, retries, timeout
 }
 
-impl HmacsClient {
+impl CarbideClient {
     fn with_api_key(self, key: &str) -> Self;
     fn with_token(self, token: &str) -> Self;
-    async fn connect(&self) -> HmacsResult<()>;
+    async fn connect(&self) -> CarbideResult<()>;
     // Task/Compute/Wallet 操作接口（待接入 gRPC）
 }
 ```
@@ -747,7 +747,7 @@ fn sign_message_ed25519(keypair: &[u8; 64], message: &[u8]) -> [u8; 64];
 
 ---
 
-## 15. 合规引擎 — hmacs-compliance
+## 15. 合规引擎 — carbide-compliance
 
 ### 15.1 司法管辖区 (`jurisdiction.rs`)
 
@@ -825,7 +825,7 @@ fn sign_message_ed25519(keypair: &[u8; 64], message: &[u8]) -> [u8; 64];
 
 ---
 
-## 16. MPC 子系统 — hmacs-mpc
+## 16. MPC 子系统 — carbide-mpc
 
 ### 16.1 MPC 任务状态机 (`state.rs`)
 
@@ -916,7 +916,7 @@ fn verify_share(share: &SignatureShare, message: &[u8]) -> VssResult {
 
 ## 17. gRPC 协议定义
 
-`proto/hmacs.proto` 定义 4 个服务，共 25 个 RPC 方法：
+`proto/carbide.proto` 定义 4 个服务，共 25 个 RPC 方法：
 
 | 服务 | 方法数 | 主要操作 |
 |------|--------|---------|
@@ -977,14 +977,14 @@ fn verify_share(share: &SignatureShare, message: &[u8]) -> VssResult {
 bind_addr = "0.0.0.0:8080"
 
 [database]
-url = "postgres://hmacs:hmacs@localhost:5432/hmacs"
+url = "postgres://carbide:carbide@localhost:5432/carbide"
 max_connections = 20
 
 [redis]
 url = "redis://localhost:6379"
 
 [auth]
-jwt_secret = "hmacs-dev-secret-change-in-production"
+jwt_secret = "carbide-dev-secret-change-in-production"
 jwt_token_ttl_hours = 24
 
 [settlement.solana]
@@ -994,7 +994,7 @@ rpc_url = "https://api.devnet.solana.com"
 rpc_url = "https://rpc.sepolia.org"
 ```
 
-生产环境敏感配置通过环境变量注入: `HMACS_DATABASE_URL`, `HMACS_JWT_SECRET`。
+生产环境敏感配置通过环境变量注入: `CARBIDE_DATABASE_URL`, `CARBIDE_JWT_SECRET`。
 
 ---
 
@@ -1004,14 +1004,14 @@ rpc_url = "https://rpc.sepolia.org"
 
 | Crate | 测试数 | 覆盖场景 |
 |-------|--------|---------|
-| `hmacs-core` | 5 | ID 创建/显示/往返转换, 金额显示, 资产预设 |
-| `hmacs-identity` | 9 | JWT 往返, API Key 生成/验证, 钱包签名, 委托密钥 CRUD, Agent 权限拒绝 |
-| `hmacs-engine` | 7 | 买卖排序, 价差计算, 精确/部分成交, 价格优先级 |
-| `hmacs-task` | 5 | 完整生命周期, 争议路径, 无效转换, 状态转换规则 |
-| `hmacs-compute` | 7 | 资源注册/筛选, 上架/租赁/计量, 量价指导, 自动完成 |
-| `hmacs-wallet` | 8 | 充值/冻结/解冻/结算/流水, 隔离/解除隔离, 惩罚分配, 水龙头兜底 |
-| `hmacs-compliance` | 39 | 各管辖区阈值, KYC 分级, 制裁筛查, 交易监控5规则, 旅行规则, 风险评分, GDPR删除, 综合前置检查 |
-| `hmacs-mpc` | 17 | 状态机转换, 竞赛达标/超时/恶意检测, VSS 验证(有效/空/错误承诺/错误长度), 任务创建/加入/重试, 黑名单 |
+| `carbide-core` | 5 | ID 创建/显示/往返转换, 金额显示, 资产预设 |
+| `carbide-identity` | 9 | JWT 往返, API Key 生成/验证, 钱包签名, 委托密钥 CRUD, Agent 权限拒绝 |
+| `carbide-engine` | 7 | 买卖排序, 价差计算, 精确/部分成交, 价格优先级 |
+| `carbide-task` | 5 | 完整生命周期, 争议路径, 无效转换, 状态转换规则 |
+| `carbide-compute` | 7 | 资源注册/筛选, 上架/租赁/计量, 量价指导, 自动完成 |
+| `carbide-wallet` | 8 | 充值/冻结/解冻/结算/流水, 隔离/解除隔离, 惩罚分配, 水龙头兜底 |
+| `carbide-compliance` | 39 | 各管辖区阈值, KYC 分级, 制裁筛查, 交易监控5规则, 旅行规则, 风险评分, GDPR删除, 综合前置检查 |
+| `carbide-mpc` | 17 | 状态机转换, 竞赛达标/超时/恶意检测, VSS 验证(有效/空/错误承诺/错误长度), 任务创建/加入/重试, 黑名单 |
 
 ---
 

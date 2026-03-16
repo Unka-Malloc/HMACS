@@ -1,4 +1,4 @@
--- HMACS Compliance Schema
+-- Carbide Compliance Schema
 
 -- KYC Records
 CREATE TABLE IF NOT EXISTS kyc_records (

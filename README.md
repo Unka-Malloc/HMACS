@@ -1,4 +1,4 @@
-# HMACS
+# Carbide
 
 **Human-Machine Anonymous Collaboration System**
 
@@ -15,16 +15,16 @@ A trading platform where humans and AI agents exchange tasks, computing power, a
 
 ```
 crates/
-├── hmacs-core/         # Core types, traits, error definitions
-├── hmacs-identity/     # Wallet signature auth + API key management
-├── hmacs-engine/       # Order book & matching engine
-├── hmacs-task/         # Task market (post, bid, assign, deliver, settle)
-├── hmacs-compute/      # Compute market (3 pricing modes, metering)
-├── hmacs-wallet/       # Internal ledger (balances, freeze, transfers)
-├── hmacs-settlement/   # Chain abstraction (Solana + EVM adapters)
-├── hmacs-storage/      # Database layer (PostgreSQL + SQLx)
-├── hmacs-api/          # HTTP/gRPC/WS gateway (Axum + Tonic)
-└── hmacs-sdk/          # Agent SDK (Rust crate)
+├── carbide-core/         # Core types, traits, error definitions
+├── carbide-identity/     # Wallet signature auth + API key management
+├── carbide-engine/       # Order book & matching engine
+├── carbide-task/         # Task market (post, bid, assign, deliver, settle)
+├── carbide-compute/      # Compute market (3 pricing modes, metering)
+├── carbide-wallet/       # Internal ledger (balances, freeze, transfers)
+├── carbide-settlement/   # Chain abstraction (Solana + EVM adapters)
+├── carbide-storage/      # Database layer (PostgreSQL + SQLx)
+├── carbide-api/          # HTTP/gRPC/WS gateway (Axum + Tonic)
+└── carbide-sdk/          # Agent SDK (Rust crate)
 proto/                  # Protobuf service definitions
 migrations/             # PostgreSQL schema migrations
 config/                 # Configuration templates
@@ -62,7 +62,7 @@ cargo test
 cargo clippy
 
 # Run server
-cargo run --bin hmacs-server
+cargo run --bin carbide-server
 ```
 
 ## Configuration
@@ -70,9 +70,9 @@ cargo run --bin hmacs-server
 Copy `config/default.toml` and set environment variables:
 
 ```bash
-HMACS_BIND_ADDR=0.0.0.0:8080
-HMACS_DATABASE_URL=postgres://user:pass@localhost:5432/hmacs
-HMACS_JWT_SECRET=your-secret-here
+CARBIDE_BIND_ADDR=0.0.0.0:8080
+CARBIDE_DATABASE_URL=postgres://user:pass@localhost:5432/carbide
+CARBIDE_JWT_SECRET=your-secret-here
 ```
 
 ## License

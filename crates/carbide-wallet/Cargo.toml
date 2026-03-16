@@ -1,0 +1,22 @@
+[package]
+name = "carbide-wallet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Internal ledger for Carbide (balances, freezes, transfers)"
+
+[dependencies]
+carbide-core = { workspace = true }
+carbide-storage = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+sqlx = { workspace = true }
+parking_lot = { workspace = true }

@@ -1,40 +1,40 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/hmacs-core",
-    "crates/hmacs-identity",
-    "crates/hmacs-engine",
-    "crates/hmacs-task",
-    "crates/hmacs-compute",
-    "crates/hmacs-wallet",
-    "crates/hmacs-settlement",
-    "crates/hmacs-storage",
-    "crates/hmacs-api",
-    "crates/hmacs-sdk",
-    "crates/hmacs-compliance",
-    "crates/hmacs-mpc",
+    "crates/carbide-core",
+    "crates/carbide-identity",
+    "crates/carbide-engine",
+    "crates/carbide-task",
+    "crates/carbide-compute",
+    "crates/carbide-wallet",
+    "crates/carbide-settlement",
+    "crates/carbide-storage",
+    "crates/carbide-api",
+    "crates/carbide-sdk",
+    "crates/carbide-compliance",
+    "crates/carbide-mpc",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/anthropic/hmacs"
+repository = "https://github.com/anthropic/carbide"
 
 [workspace.dependencies]
 # Internal crates
-hmacs-core = { path = "crates/hmacs-core" }
-hmacs-identity = { path = "crates/hmacs-identity" }
-hmacs-engine = { path = "crates/hmacs-engine" }
-hmacs-task = { path = "crates/hmacs-task" }
-hmacs-compute = { path = "crates/hmacs-compute" }
-hmacs-wallet = { path = "crates/hmacs-wallet" }
-hmacs-settlement = { path = "crates/hmacs-settlement" }
-hmacs-storage = { path = "crates/hmacs-storage" }
-hmacs-api = { path = "crates/hmacs-api" }
-hmacs-sdk = { path = "crates/hmacs-sdk" }
-hmacs-compliance = { path = "crates/hmacs-compliance" }
-hmacs-mpc = { path = "crates/hmacs-mpc" }
+carbide-core = { path = "crates/carbide-core" }
+carbide-identity = { path = "crates/carbide-identity" }
+carbide-engine = { path = "crates/carbide-engine" }
+carbide-task = { path = "crates/carbide-task" }
+carbide-compute = { path = "crates/carbide-compute" }
+carbide-wallet = { path = "crates/carbide-wallet" }
+carbide-settlement = { path = "crates/carbide-settlement" }
+carbide-storage = { path = "crates/carbide-storage" }
+carbide-api = { path = "crates/carbide-api" }
+carbide-sdk = { path = "crates/carbide-sdk" }
+carbide-compliance = { path = "crates/carbide-compliance" }
+carbide-mpc = { path = "crates/carbide-mpc" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

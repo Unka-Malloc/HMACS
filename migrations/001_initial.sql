@@ -1,4 +1,4 @@
--- HMACS Initial Schema
+-- Carbide Initial Schema
 
 -- Participants (humans and agents)
 CREATE TABLE IF NOT EXISTS participants (
