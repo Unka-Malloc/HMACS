@@ -1,17 +1,25 @@
 use crate::balance::Balance;
 use crate::ledger::{LedgerEntry, LedgerEntryType};
 use chrono::Utc;
-use hmacs_core::{AssetSymbol, HmacsError, HmacsResult, ParticipantId, TransactionId, WalletId};
+use hmacs_core::{
+    AssetSymbol, HmacsError, HmacsResult, ParticipantId, ParticipantKind, TransactionId, WalletId,
+};
 use parking_lot::RwLock;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
+use tracing::warn;
 
 type BalanceKey = (ParticipantId, AssetSymbol);
 
-/// In-memory wallet service for development. Production would use hmacs-storage.
+/// Well-known account for subsidizing gas fees for new developers.
+/// The platform treasury must never accumulate slashed funds — they go here.
+pub const PUBLIC_FAUCET_LABEL: &str = "PUBLIC_FAUCET";
+
 pub struct WalletService {
     balances: RwLock<HashMap<BalanceKey, Balance>>,
     ledger: RwLock<Vec<LedgerEntry>>,
+    /// The public faucet account ID (set on construction)
+    pub faucet_account: ParticipantId,
 }
 
 impl WalletService {
@@ -19,27 +27,29 @@ impl WalletService {
         Self {
             balances: RwLock::new(HashMap::new()),
             ledger: RwLock::new(Vec::new()),
+            faucet_account: ParticipantId::new(),
         }
     }
 
-    pub fn get_balance(
-        &self,
-        participant_id: ParticipantId,
-        asset: AssetSymbol,
-    ) -> Balance {
+    fn new_balance(participant_id: ParticipantId, asset: AssetSymbol) -> Balance {
+        Balance {
+            wallet_id: WalletId::new(),
+            participant_id,
+            asset,
+            available: Decimal::ZERO,
+            frozen: Decimal::ZERO,
+            quarantined: Decimal::ZERO,
+            updated_at: Utc::now(),
+        }
+    }
+
+    pub fn get_balance(&self, participant_id: ParticipantId, asset: AssetSymbol) -> Balance {
         let key = (participant_id, asset);
         self.balances
             .read()
             .get(&key)
             .cloned()
-            .unwrap_or_else(|| Balance {
-                wallet_id: WalletId::new(),
-                participant_id,
-                asset,
-                available: Decimal::ZERO,
-                frozen: Decimal::ZERO,
-                updated_at: Utc::now(),
-            })
+            .unwrap_or_else(|| Self::new_balance(participant_id, asset))
     }
 
     pub fn get_all_balances(&self, participant_id: ParticipantId) -> Vec<Balance> {
@@ -51,6 +61,14 @@ impl WalletService {
             .collect()
     }
 
+    /// Enforce the master-slave rule: agents cannot call fund-transfer functions.
+    pub fn enforce_human_only(&self, caller_kind: ParticipantKind) -> HmacsResult<()> {
+        if caller_kind == ParticipantKind::Agent {
+            return Err(HmacsError::AgentFundTransferForbidden);
+        }
+        Ok(())
+    }
+
     pub fn deposit(
         &self,
         participant_id: ParticipantId,
@@ -59,19 +77,16 @@ impl WalletService {
         reference_id: Option<String>,
     ) -> HmacsResult<Balance> {
         if amount <= Decimal::ZERO {
-            return Err(HmacsError::InvalidInput("Deposit amount must be positive".into()));
+            return Err(HmacsError::InvalidInput(
+                "Deposit amount must be positive".into(),
+            ));
         }
 
         let key = (participant_id, asset);
         let mut balances = self.balances.write();
-        let balance = balances.entry(key).or_insert_with(|| Balance {
-            wallet_id: WalletId::new(),
-            participant_id,
-            asset,
-            available: Decimal::ZERO,
-            frozen: Decimal::ZERO,
-            updated_at: Utc::now(),
-        });
+        let balance = balances
+            .entry(key)
+            .or_insert_with(|| Self::new_balance(participant_id, asset));
 
         balance.available += amount;
         balance.updated_at = Utc::now();
@@ -99,17 +114,25 @@ impl WalletService {
         reference_id: Option<String>,
     ) -> HmacsResult<Balance> {
         if amount <= Decimal::ZERO {
-            return Err(HmacsError::InvalidInput("Withdrawal amount must be positive".into()));
+            return Err(HmacsError::InvalidInput(
+                "Withdrawal amount must be positive".into(),
+            ));
         }
 
         let key = (participant_id, asset);
         let mut balances = self.balances.write();
-        let balance = balances
-            .get_mut(&key)
-            .ok_or_else(|| HmacsError::InsufficientBalance {
+        let balance = balances.get_mut(&key).ok_or_else(|| {
+            HmacsError::InsufficientBalance {
                 needed: format!("{} {}", amount, asset),
                 available: format!("0 {}", asset),
-            })?;
+            }
+        })?;
+
+        if balance.has_quarantined() {
+            return Err(HmacsError::FundsQuarantined(
+                "Cannot withdraw while funds are quarantined".into(),
+            ));
+        }
 
         if !balance.can_spend(amount) {
             return Err(HmacsError::InsufficientBalance {
@@ -144,17 +167,19 @@ impl WalletService {
         reference_id: Option<String>,
     ) -> HmacsResult<Balance> {
         if amount <= Decimal::ZERO {
-            return Err(HmacsError::InvalidInput("Freeze amount must be positive".into()));
+            return Err(HmacsError::InvalidInput(
+                "Freeze amount must be positive".into(),
+            ));
         }
 
         let key = (participant_id, asset);
         let mut balances = self.balances.write();
-        let balance = balances
-            .get_mut(&key)
-            .ok_or_else(|| HmacsError::InsufficientBalance {
+        let balance = balances.get_mut(&key).ok_or_else(|| {
+            HmacsError::InsufficientBalance {
                 needed: format!("{} {}", amount, asset),
                 available: format!("0 {}", asset),
-            })?;
+            }
+        })?;
 
         if !balance.can_spend(amount) {
             return Err(HmacsError::InsufficientBalance {
@@ -190,7 +215,9 @@ impl WalletService {
         reference_id: Option<String>,
     ) -> HmacsResult<Balance> {
         if amount <= Decimal::ZERO {
-            return Err(HmacsError::InvalidInput("Unfreeze amount must be positive".into()));
+            return Err(HmacsError::InvalidInput(
+                "Unfreeze amount must be positive".into(),
+            ));
         }
 
         let key = (participant_id, asset);
@@ -225,6 +252,196 @@ impl WalletService {
         Ok(balance.clone())
     }
 
+    /// Atomically move funds from Available to Quarantined.
+    /// Triggered by the risk/compliance middleware on AML alerts.
+    pub fn quarantine(
+        &self,
+        participant_id: ParticipantId,
+        asset: AssetSymbol,
+        amount: Decimal,
+        reason: String,
+    ) -> HmacsResult<Balance> {
+        if amount <= Decimal::ZERO {
+            return Err(HmacsError::InvalidInput(
+                "Quarantine amount must be positive".into(),
+            ));
+        }
+
+        let key = (participant_id, asset);
+        let mut balances = self.balances.write();
+        let balance = balances
+            .get_mut(&key)
+            .ok_or_else(|| HmacsError::not_found("Balance", participant_id))?;
+
+        if !balance.can_spend(amount) {
+            return Err(HmacsError::InsufficientBalance {
+                needed: format!("{} {}", amount, asset),
+                available: format!("{} {}", balance.available, asset),
+            });
+        }
+
+        warn!(
+            participant = %participant_id,
+            amount = %amount,
+            asset = %asset,
+            reason = %reason,
+            "Funds quarantined"
+        );
+
+        balance.available -= amount;
+        balance.quarantined += amount;
+        balance.updated_at = Utc::now();
+
+        self.record_entry(
+            participant_id,
+            LedgerEntryType::Quarantine,
+            asset,
+            amount,
+            0,
+            balance.available,
+            None,
+            Some("quarantine".to_string()),
+            Some(reason),
+        );
+
+        Ok(balance.clone())
+    }
+
+    /// Release quarantined funds back to available (admin action only).
+    pub fn unquarantine(
+        &self,
+        participant_id: ParticipantId,
+        asset: AssetSymbol,
+        amount: Decimal,
+    ) -> HmacsResult<Balance> {
+        if amount <= Decimal::ZERO {
+            return Err(HmacsError::InvalidInput(
+                "Unquarantine amount must be positive".into(),
+            ));
+        }
+
+        let key = (participant_id, asset);
+        let mut balances = self.balances.write();
+        let balance = balances
+            .get_mut(&key)
+            .ok_or_else(|| HmacsError::not_found("Balance", participant_id))?;
+
+        if balance.quarantined < amount {
+            return Err(HmacsError::InvalidInput(format!(
+                "Cannot unquarantine {} {}: only {} quarantined",
+                amount, asset, balance.quarantined
+            )));
+        }
+
+        balance.quarantined -= amount;
+        balance.available += amount;
+        balance.updated_at = Utc::now();
+
+        self.record_entry(
+            participant_id,
+            LedgerEntryType::Unquarantine,
+            asset,
+            amount,
+            0,
+            balance.available,
+            None,
+            Some("unquarantine".to_string()),
+            Some("Admin clearance".to_string()),
+        );
+
+        Ok(balance.clone())
+    }
+
+    /// Slash a participant's frozen micro-stake and distribute to honest agents
+    /// (Robin Hood pool). The platform treasury receives exactly zero.
+    pub fn slash_and_distribute(
+        &self,
+        malicious_agent: ParticipantId,
+        asset: AssetSymbol,
+        stake_amount: Decimal,
+        honest_agents: &[ParticipantId],
+        reference_id: Option<String>,
+    ) -> HmacsResult<()> {
+        if stake_amount <= Decimal::ZERO {
+            return Err(HmacsError::InvalidInput(
+                "Slash amount must be positive".into(),
+            ));
+        }
+
+        let malicious_key = (malicious_agent, asset);
+        let mut balances = self.balances.write();
+
+        // Confiscate from frozen
+        {
+            let balance = balances
+                .get_mut(&malicious_key)
+                .ok_or_else(|| HmacsError::not_found("Balance", malicious_agent))?;
+            if !balance.can_unfreeze(stake_amount) {
+                return Err(HmacsError::InsufficientBalance {
+                    needed: format!("{} {} (frozen)", stake_amount, asset),
+                    available: format!("{} {} (frozen)", balance.frozen, asset),
+                });
+            }
+            balance.frozen -= stake_amount;
+            balance.updated_at = Utc::now();
+        }
+
+        self.record_entry(
+            malicious_agent,
+            LedgerEntryType::Slash,
+            asset,
+            stake_amount,
+            -1,
+            balances
+                .get(&malicious_key)
+                .map(|b| b.available)
+                .unwrap_or_default(),
+            reference_id.clone(),
+            Some("slash".to_string()),
+            Some("Malicious MPC share — stake confiscated".to_string()),
+        );
+
+        // Distribute to honest agents, or to faucet if none
+        let recipients: Vec<ParticipantId> = if honest_agents.is_empty() {
+            vec![self.faucet_account]
+        } else {
+            honest_agents.to_vec()
+        };
+
+        let share = stake_amount / Decimal::from(recipients.len() as u64);
+        let mut distributed = Decimal::ZERO;
+
+        for (i, recipient) in recipients.iter().enumerate() {
+            let amount = if i == recipients.len() - 1 {
+                stake_amount - distributed
+            } else {
+                share
+            };
+            distributed += amount;
+
+            let rkey = (*recipient, asset);
+            let bal = balances
+                .entry(rkey)
+                .or_insert_with(|| Self::new_balance(*recipient, asset));
+            bal.available += amount;
+            bal.updated_at = Utc::now();
+
+            self.record_entry(
+                *recipient,
+                LedgerEntryType::RobinHoodDistribution,
+                asset,
+                amount,
+                1,
+                bal.available,
+                reference_id.clone(),
+                Some("robin_hood".to_string()),
+                Some("Time-loss compensation from slashed stake".to_string()),
+            );
+        }
+
+        Ok(())
+    }
+
     /// Transfer frozen funds from one participant to another (settlement).
     pub fn settle_transfer(
         &self,
@@ -235,7 +452,9 @@ impl WalletService {
         reference_id: Option<String>,
     ) -> HmacsResult<()> {
         if amount <= Decimal::ZERO {
-            return Err(HmacsError::InvalidInput("Transfer amount must be positive".into()));
+            return Err(HmacsError::InvalidInput(
+                "Transfer amount must be positive".into(),
+            ));
         }
 
         let from_key = (from, asset);
@@ -257,19 +476,20 @@ impl WalletService {
             from_balance.updated_at = Utc::now();
         }
 
-        let to_balance = balances.entry(to_key).or_insert_with(|| Balance {
-            wallet_id: WalletId::new(),
-            participant_id: to,
-            asset,
-            available: Decimal::ZERO,
-            frozen: Decimal::ZERO,
-            updated_at: Utc::now(),
-        });
+        let to_balance = balances
+            .entry(to_key)
+            .or_insert_with(|| Self::new_balance(to, asset));
         to_balance.available += amount;
         to_balance.updated_at = Utc::now();
 
-        let from_available = balances.get(&from_key).map(|b| b.available).unwrap_or_default();
-        let to_available = balances.get(&to_key).map(|b| b.available).unwrap_or_default();
+        let from_available = balances
+            .get(&from_key)
+            .map(|b| b.available)
+            .unwrap_or_default();
+        let to_available = balances
+            .get(&to_key)
+            .map(|b| b.available)
+            .unwrap_or_default();
 
         let ref_id = reference_id.clone();
         self.record_entry(
@@ -351,23 +571,27 @@ mod tests {
     fn test_deposit_and_balance() {
         let svc = WalletService::new();
         let pid = ParticipantId::new();
-        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None).unwrap();
+        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None)
+            .unwrap();
         let bal = svc.get_balance(pid, AssetSymbol::Usdc);
         assert_eq!(bal.available, dec!(100));
         assert_eq!(bal.frozen, dec!(0));
+        assert_eq!(bal.quarantined, dec!(0));
     }
 
     #[test]
     fn test_freeze_unfreeze() {
         let svc = WalletService::new();
         let pid = ParticipantId::new();
-        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None).unwrap();
+        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None)
+            .unwrap();
         svc.freeze(pid, AssetSymbol::Usdc, dec!(30), None).unwrap();
         let bal = svc.get_balance(pid, AssetSymbol::Usdc);
         assert_eq!(bal.available, dec!(70));
         assert_eq!(bal.frozen, dec!(30));
 
-        svc.unfreeze(pid, AssetSymbol::Usdc, dec!(10), None).unwrap();
+        svc.unfreeze(pid, AssetSymbol::Usdc, dec!(10), None)
+            .unwrap();
         let bal = svc.get_balance(pid, AssetSymbol::Usdc);
         assert_eq!(bal.available, dec!(80));
         assert_eq!(bal.frozen, dec!(20));
@@ -377,7 +601,8 @@ mod tests {
     fn test_insufficient_balance() {
         let svc = WalletService::new();
         let pid = ParticipantId::new();
-        svc.deposit(pid, AssetSymbol::Usdc, dec!(50), None).unwrap();
+        svc.deposit(pid, AssetSymbol::Usdc, dec!(50), None)
+            .unwrap();
         let result = svc.withdraw(pid, AssetSymbol::Usdc, dec!(100), None);
         assert!(result.is_err());
     }
@@ -387,9 +612,12 @@ mod tests {
         let svc = WalletService::new();
         let from = ParticipantId::new();
         let to = ParticipantId::new();
-        svc.deposit(from, AssetSymbol::Usdc, dec!(100), None).unwrap();
-        svc.freeze(from, AssetSymbol::Usdc, dec!(50), None).unwrap();
-        svc.settle_transfer(from, to, AssetSymbol::Usdc, dec!(50), None).unwrap();
+        svc.deposit(from, AssetSymbol::Usdc, dec!(100), None)
+            .unwrap();
+        svc.freeze(from, AssetSymbol::Usdc, dec!(50), None)
+            .unwrap();
+        svc.settle_transfer(from, to, AssetSymbol::Usdc, dec!(50), None)
+            .unwrap();
 
         let from_bal = svc.get_balance(from, AssetSymbol::Usdc);
         assert_eq!(from_bal.available, dec!(50));
@@ -403,9 +631,83 @@ mod tests {
     fn test_ledger_entries() {
         let svc = WalletService::new();
         let pid = ParticipantId::new();
-        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None).unwrap();
+        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None)
+            .unwrap();
         svc.freeze(pid, AssetSymbol::Usdc, dec!(30), None).unwrap();
         let entries = svc.get_ledger_entries(pid);
         assert_eq!(entries.len(), 2);
+    }
+
+    #[test]
+    fn test_quarantine_and_unquarantine() {
+        let svc = WalletService::new();
+        let pid = ParticipantId::new();
+        svc.deposit(pid, AssetSymbol::Usdc, dec!(100), None)
+            .unwrap();
+
+        svc.quarantine(pid, AssetSymbol::Usdc, dec!(40), "AML alert".into())
+            .unwrap();
+        let bal = svc.get_balance(pid, AssetSymbol::Usdc);
+        assert_eq!(bal.available, dec!(60));
+        assert_eq!(bal.quarantined, dec!(40));
+        assert!(bal.has_quarantined());
+
+        // Cannot withdraw while quarantined
+        let result = svc.withdraw(pid, AssetSymbol::Usdc, dec!(10), None);
+        assert!(result.is_err());
+
+        // Admin clears quarantine
+        svc.unquarantine(pid, AssetSymbol::Usdc, dec!(40)).unwrap();
+        let bal = svc.get_balance(pid, AssetSymbol::Usdc);
+        assert_eq!(bal.available, dec!(100));
+        assert_eq!(bal.quarantined, dec!(0));
+    }
+
+    #[test]
+    fn test_slash_and_robin_hood_distribution() {
+        let svc = WalletService::new();
+        let malicious = ParticipantId::new();
+        let honest_a = ParticipantId::new();
+        let honest_b = ParticipantId::new();
+
+        // Malicious agent has a frozen micro-stake
+        svc.deposit(malicious, AssetSymbol::Usdc, dec!(1), None)
+            .unwrap();
+        svc.freeze(malicious, AssetSymbol::Usdc, dec!(0.1), None)
+            .unwrap();
+
+        // Slash and distribute to honest agents
+        svc.slash_and_distribute(
+            malicious,
+            AssetSymbol::Usdc,
+            dec!(0.1),
+            &[honest_a, honest_b],
+            None,
+        )
+        .unwrap();
+
+        let mal_bal = svc.get_balance(malicious, AssetSymbol::Usdc);
+        assert_eq!(mal_bal.frozen, dec!(0));
+
+        let a_bal = svc.get_balance(honest_a, AssetSymbol::Usdc);
+        let b_bal = svc.get_balance(honest_b, AssetSymbol::Usdc);
+        assert_eq!(a_bal.available + b_bal.available, dec!(0.1));
+    }
+
+    #[test]
+    fn test_slash_no_honest_agents_goes_to_faucet() {
+        let svc = WalletService::new();
+        let malicious = ParticipantId::new();
+
+        svc.deposit(malicious, AssetSymbol::Usdc, dec!(1), None)
+            .unwrap();
+        svc.freeze(malicious, AssetSymbol::Usdc, dec!(0.1), None)
+            .unwrap();
+
+        svc.slash_and_distribute(malicious, AssetSymbol::Usdc, dec!(0.1), &[], None)
+            .unwrap();
+
+        let faucet_bal = svc.get_balance(svc.faucet_account, AssetSymbol::Usdc);
+        assert_eq!(faucet_bal.available, dec!(0.1));
     }
 }

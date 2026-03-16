@@ -1,21 +1,16 @@
 [package]
-name = "hmacs-identity"
+name = "hmacs-mpc"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Identity and authentication for HMACS (wallet signatures + API keys)"
+description = "MPC (FROST threshold signature) task execution for HMACS"
 
 [dependencies]
 hmacs-core = { workspace = true }
-hmacs-storage = { workspace = true }
-ed25519-dalek = { workspace = true }
-sha2 = { workspace = true }
-hmac = { workspace = true }
-rand = { workspace = true }
-base64 = { workspace = true }
-hex = { workspace = true }
-bs58 = { workspace = true }
-jsonwebtoken = { workspace = true }
+hmacs-wallet = { workspace = true }
+rust_decimal = { workspace = true }
+rust_decimal_macros = { workspace = true }
+hmacs-identity = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }
@@ -25,3 +20,6 @@ async-trait = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 parking_lot = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+futures = { workspace = true }

@@ -14,6 +14,10 @@ pub enum LedgerEntryType {
     Fee,
     Refund,
     Settlement,
+    Quarantine,
+    Unquarantine,
+    Slash,
+    RobinHoodDistribution,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

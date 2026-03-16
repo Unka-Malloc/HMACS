@@ -10,12 +10,15 @@ pub struct Balance {
     pub asset: AssetSymbol,
     pub available: Decimal,
     pub frozen: Decimal,
+    /// Funds quarantined by the risk/compliance engine. Cannot be withdrawn
+    /// or used for new tasks until manually cleared by platform admins.
+    pub quarantined: Decimal,
     pub updated_at: DateTime<Utc>,
 }
 
 impl Balance {
     pub fn total(&self) -> Decimal {
-        self.available + self.frozen
+        self.available + self.frozen + self.quarantined
     }
 
     pub fn can_spend(&self, amount: Decimal) -> bool {
@@ -24,5 +27,9 @@ impl Balance {
 
     pub fn can_unfreeze(&self, amount: Decimal) -> bool {
         self.frozen >= amount
+    }
+
+    pub fn has_quarantined(&self) -> bool {
+        self.quarantined > Decimal::ZERO
     }
 }

@@ -53,6 +53,18 @@ pub enum HmacsError {
     #[error("Travel rule violation: {0}")]
     TravelRuleViolation(String),
 
+    #[error("Agent fund transfer forbidden: agents cannot initiate fund operations")]
+    AgentFundTransferForbidden,
+
+    #[error("Funds quarantined: {0}")]
+    FundsQuarantined(String),
+
+    #[error("Agent blacklisted: {0}")]
+    AgentBlacklisted(String),
+
+    #[error("MPC error: {0}")]
+    MpcError(String),
+
     #[error("Database error: {0}")]
     DatabaseError(String),
 
@@ -78,6 +90,10 @@ impl HmacsError {
             Self::KycRequired(_) => 403,
             Self::SanctionsMatch(_) => 451,
             Self::TravelRuleViolation(_) => 422,
+            Self::AgentFundTransferForbidden => 403,
+            Self::FundsQuarantined(_) => 423,
+            Self::AgentBlacklisted(_) => 403,
+            Self::MpcError(_) => 500,
             Self::SettlementError(_) => 502,
             Self::ChainError { .. } => 502,
             Self::DatabaseError(_) => 500,

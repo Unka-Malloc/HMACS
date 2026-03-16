@@ -88,6 +88,9 @@ define_id!(AlertId);
 define_id!(TravelRuleMessageId);
 define_id!(ConsentRecordId);
 define_id!(ErasureRequestId);
+define_id!(DelegatedKeyId);
+define_id!(MpcTaskId);
+define_id!(BlacklistEntryId);
 
 #[cfg(test)]
 mod tests {

@@ -3003,6 +3003,7 @@ dependencies = [
  "hmacs-core",
  "hmacs-engine",
  "hmacs-identity",
+ "hmacs-mpc",
  "hmacs-settlement",
  "hmacs-storage",
  "hmacs-task",
@@ -3113,7 +3114,31 @@ dependencies = [
  "hmacs-core",
  "hmacs-storage",
  "jsonwebtoken",
+ "parking_lot",
  "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "hmacs-mpc"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "hmacs-core",
+ "hmacs-identity",
+ "hmacs-wallet",
+ "parking_lot",
+ "rand 0.8.5",
+ "rust_decimal",
+ "rust_decimal_macros",
  "serde",
  "serde_json",
  "sha2 0.10.9",
