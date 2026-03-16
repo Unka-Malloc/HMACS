@@ -38,6 +38,21 @@ pub enum HmacsError {
         message: String,
     },
 
+    #[error("Compliance blocked: {reason} (jurisdiction: {jurisdiction})")]
+    ComplianceBlocked {
+        reason: String,
+        jurisdiction: String,
+    },
+
+    #[error("KYC required: {0}")]
+    KycRequired(String),
+
+    #[error("Sanctions match: {0}")]
+    SanctionsMatch(String),
+
+    #[error("Travel rule violation: {0}")]
+    TravelRuleViolation(String),
+
     #[error("Database error: {0}")]
     DatabaseError(String),
 
@@ -59,6 +74,10 @@ impl HmacsError {
             Self::Forbidden(_) => 403,
             Self::InsufficientBalance { .. } => 422,
             Self::InvalidStateTransition { .. } => 422,
+            Self::ComplianceBlocked { .. } => 451,
+            Self::KycRequired(_) => 403,
+            Self::SanctionsMatch(_) => 451,
+            Self::TravelRuleViolation(_) => 422,
             Self::SettlementError(_) => 502,
             Self::ChainError { .. } => 502,
             Self::DatabaseError(_) => 500,

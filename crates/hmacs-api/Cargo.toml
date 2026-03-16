@@ -18,6 +18,7 @@ hmacs-compute = { workspace = true }
 hmacs-wallet = { workspace = true }
 hmacs-settlement = { workspace = true }
 hmacs-storage = { workspace = true }
+hmacs-compliance = { workspace = true }
 axum = { workspace = true }
 axum-extra = { workspace = true }
 tower = { workspace = true }

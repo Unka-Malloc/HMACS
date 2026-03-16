@@ -1,3 +1,4 @@
+use hmacs_compliance::ComplianceService;
 use hmacs_compute::ComputeService;
 use hmacs_engine::OrderBookManager;
 use hmacs_engine::MatchingEngine;
@@ -13,6 +14,7 @@ pub struct AppState {
     pub compute_service: Arc<ComputeService>,
     pub wallet_service: Arc<WalletService>,
     pub matching_engine: Arc<MatchingEngine>,
+    pub compliance_service: Arc<ComplianceService>,
     pub jwt_config: Arc<JwtConfig>,
 }
 
@@ -24,6 +26,7 @@ impl AppState {
             compute_service: Arc::new(ComputeService::new()),
             wallet_service: Arc::new(WalletService::new()),
             matching_engine: Arc::new(MatchingEngine::new(order_books)),
+            compliance_service: Arc::new(ComplianceService::default()),
             jwt_config: Arc::new(JwtConfig::default()),
         }
     }

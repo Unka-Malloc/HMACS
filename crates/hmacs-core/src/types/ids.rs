@@ -82,6 +82,12 @@ define_id!(WalletId);
 define_id!(TransactionId);
 define_id!(ApiKeyId);
 define_id!(SettlementId);
+define_id!(KycRecordId);
+define_id!(ScreeningId);
+define_id!(AlertId);
+define_id!(TravelRuleMessageId);
+define_id!(ConsentRecordId);
+define_id!(ErasureRequestId);
 
 #[cfg(test)]
 mod tests {

@@ -11,6 +11,7 @@ members = [
     "crates/hmacs-storage",
     "crates/hmacs-api",
     "crates/hmacs-sdk",
+    "crates/hmacs-compliance",
 ]
 
 [workspace.package]
@@ -31,6 +32,7 @@ hmacs-settlement = { path = "crates/hmacs-settlement" }
 hmacs-storage = { path = "crates/hmacs-storage" }
 hmacs-api = { path = "crates/hmacs-api" }
 hmacs-sdk = { path = "crates/hmacs-sdk" }
+hmacs-compliance = { path = "crates/hmacs-compliance" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

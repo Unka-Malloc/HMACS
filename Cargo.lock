@@ -2998,6 +2998,7 @@ dependencies = [
  "config",
  "dotenvy",
  "futures",
+ "hmacs-compliance",
  "hmacs-compute",
  "hmacs-core",
  "hmacs-engine",
@@ -3018,6 +3019,26 @@ dependencies = [
  "tower-http 0.5.2",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "hmacs-compliance"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "hmacs-core",
+ "parking_lot",
+ "rust_decimal",
+ "rust_decimal_macros",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

@@ -3,6 +3,7 @@ pub mod tasks;
 pub mod compute;
 pub mod wallet;
 pub mod auth;
+pub mod compliance;
 
 use axum::Router;
 use crate::state::AppState;
@@ -14,5 +15,6 @@ pub fn build_router(state: AppState) -> Router {
         .nest("/api/v1/tasks", tasks::router(state.clone()))
         .nest("/api/v1/compute", compute::router(state.clone()))
         .nest("/api/v1/wallet", wallet::router(state.clone()))
+        .nest("/api/v1/compliance", compliance::router(state.clone()))
         .nest("/ws", crate::ws::ws_router(state))
 }
